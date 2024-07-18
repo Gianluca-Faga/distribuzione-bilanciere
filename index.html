@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label {
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100px;
+            padding: 5px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 8px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>BILANCIERONE DISTRUTTORE DI MONDI</h2>
+    <form id="balanceForm">
+        <label for="weights">Inserisci pesi (separati da virgola):</label>
+        <input type="text" id="weights" name="weights">
+        <button type="button" onclick="calculateBalance()">Calcola</button>
+    </form>
+
+    <div id="results">
+        <!-- Results will be displayed here -->
+    </div>
+
+    <script>
+        function calculateBalance() {
+            const weightsInput = document.getElementById('weights').value;
+            const weightsArray = weightsInput.split(',').map(weight => parseFloat(weight.trim()));
+
+            const availableDisks = [
+                new Disk(20.0, 2),
+                new Disk(10.0, 2),
+                new Disk(5.0, 2),
+                new Disk(2.5, 1),
+                new Disk(1.25, 1)
+            ];
+
+            let currentConfiguration = new Map();
+            let resultsHTML = '';
+
+            weightsArray.forEach(weight => {
+                const nextConfiguration = findOptimalConfiguration(weight, availableDisks, currentConfiguration);
+                resultsHTML += `<h3>Per peso target ${weight}kg:</h3>`;
+                resultsHTML += '<pre>';
+                resultsHTML += formatChanges(currentConfiguration, nextConfiguration);
+                resultsHTML += '</pre>';
+                currentConfiguration = nextConfiguration;
+            });
+
+            document.getElementById('results').innerHTML = resultsHTML;
+        }
+
+        function formatChanges(currentConfig, nextConfig) {
+            let output = "Caricare:\n";
+            for (const [weight, count] of nextConfig.entries()) {
+                const currentCount = currentConfig.get(weight) || 0;
+                if (count > currentCount) {
+                    output += ` ${weight}kg x ${count - currentCount}\n`;
+                }
+            }
+
+            output += "\nScaricare:\n";
+            for (const [weight, count] of currentConfig.entries()) {
+                const nextCount = nextConfig.get(weight) || 0;
+                if (count > nextCount) {
+                    output += ` ${weight}kg x ${count - nextCount}\n`;
+                }
+            }
+
+            return output;
+        }
+
+        class Disk {
+            constructor(weight, quantity) {
+                this.weight = weight;
+                this.quantity = quantity;
+            }
+        }
+
+        function findOptimalConfiguration(targetWeight, availableDisks, currentConfiguration) {
+            const barWeight = 0.0;
+            const targetPerSide = (targetWeight - barWeight) / 2;
+
+            const optimalConfiguration = new Map();
+            let remainingWeight = targetPerSide;
+
+            for (const disk of availableDisks) {
+                if (disk.quantity === 0) continue;
+                const count = Math.min(disk.quantity, Math.floor(remainingWeight / disk.weight));
+                if (count > 0) {
+                    optimalConfiguration.set(disk.weight, count);
+                    remainingWeight -= count * disk.weight;
+                }
+            }
+
+            if (remainingWeight > 0) {
+                return findClosestConfiguration(targetWeight, availableDisks, currentConfiguration);
+            }
+
+            return optimalConfiguration;
+        }
+
+        function findClosestConfiguration(targetWeight, availableDisks, currentConfiguration) {
+            const barWeight = 0.0;
+            const targetPerSide = (targetWeight - barWeight) / 2;
+
+            const configurations = [];
+            generateConfigurations(availableDisks, new Map(), 0, targetPerSide, configurations);
+
+            let closestConfiguration = null;
+            let closestWeightDiff = Number.MAX_VALUE;
+
+            for (const config of configurations) {
+                const configWeight = calculateWeight(config);
+                const diff = Math.abs(targetPerSide - configWeight);
+
+                if (diff < closestWeightDiff) {
+                    closestWeightDiff = diff;
+                    closestConfiguration = config;
+                }
+            }
+
+            return closestConfiguration;
+        }
+
+        function generateConfigurations(availableDisks, currentConfig, index, targetWeight, configurations) {
+            if (index === availableDisks.length) {
+                configurations.push(new Map(currentConfig));
+                return;
+            }
+
+            const disk = availableDisks[index];
+            for (let i = 0; i <= disk.quantity; i++) {
+                currentConfig.set(disk.weight, i);
+                generateConfigurations(availableDisks, currentConfig, index + 1, targetWeight, configurations);
+            }
+        }
+
+        function calculateWeight(config) {
+            let weight = 0.0;
+            for (const [key, value] of config.entries()) {
+                weight += key * value;
+            }
+            return weight;
+        }
+    </script>
+</body>
+</html>
